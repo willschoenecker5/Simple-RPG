@@ -296,6 +296,7 @@
             this.MinimumSize = new System.Drawing.Size(735, 690);
             this.Name = "SuperAdventure";
             this.Text = "My Game";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.SuperAdventure_FormClosing);
             this.Load += new System.EventHandler(this.SuperAdventure_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dgvInventory)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvQuests)).EndInit();

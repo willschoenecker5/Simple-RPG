@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
 
 namespace SuperAdventure
 {
@@ -15,17 +16,54 @@ namespace SuperAdventure
     {
         private Player _player;
         private Monster _currentMonster;
+        private const String PLAYER_DATA_FILE_NAME = "PlayerData.xml";
         public SuperAdventure()
         {
             InitializeComponent();
+            if(File.Exists(PLAYER_DATA_FILE_NAME))
+            {
+                _player = Player.CreatePlayerFromXmlString(File.ReadAllText(PLAYER_DATA_FILE_NAME));
+            }
+            else
+            {
+                _player = Player.CreateDefaultPlayer();
+            }
+            lblHitPoints.DataBindings.Add("Text", _player, "CurrentHitPoints");
+            lblGold.DataBindings.Add("Text", _player, "Gold");
+            lblExp.DataBindings.Add("Text", _player, "ExperiencePoints");
+            lblLevel.DataBindings.Add("Text", _player, "Level");
 
-            _player = new Player(10, 10, 20, 0);
-            MoveTo(World.LocationByID(World.LOCATION_ID_HOME));
-            _player.Inventory.Add(new InventoryItem(World.ItemByID(World.ITEM_ID_RUSTY_SWORD), 1));
+            dgvInventory.RowHeadersVisible = false;
+            dgvInventory.AutoGenerateColumns = false;
+            dgvInventory.DataSource = _player.Inventory;
+            dgvInventory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = "Name",
+                Width = 197,
+                DataPropertyName = "Description"
+            });
+            dgvInventory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = "Quantity",
+                DataPropertyName = "Quantity"
+            });
 
-            Location location = new Location(1, "Home", "This is your house.");
+            dgvQuests.RowHeadersVisible = false;
+            dgvQuests.AutoGenerateColumns = false;
+            dgvQuests.DataSource = _player.Quests;
+            dgvQuests.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = "Name",
+                Width = 197,
+                DataPropertyName = "Name"
+            });
+            dgvQuests.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = "Done?",
+                DataPropertyName = "IsCompleted"
+            });
 
-            UpdatePlayerStats();
+            MoveTo(_player.CurrentLocation);
         }
 
         private void SuperAdventure_Load(object sender, EventArgs e)
@@ -53,6 +91,11 @@ namespace SuperAdventure
             MoveTo(_player.CurrentLocation.LocationToWest);
         }
 
+        private void cboWeapons_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _player.CurrentWeapon =  (Weapon)cboWeapons.SelectedItem;
+        }
+
         private void MoveTo(Location newLocation)
         {
             if (!_player.HasRequiredItemToEnterThisLocation(newLocation))
@@ -75,9 +118,6 @@ namespace SuperAdventure
 
             // Completely heal the player
             _player.CurrentHitPoints = _player.MaximumHitPoints;
-
-            // Update Hit Points in UI
-            lblHitPoints.Text = _player.CurrentHitPoints.ToString();
 
             // Does the location have a quest?
             if (newLocation.QuestAvailableHere != null)
@@ -180,14 +220,6 @@ namespace SuperAdventure
                 btnUsePotion.Visible = false;
             }
 
-            // Update player's stats
-            UpdatePlayerStats();
-            // Refresh player's inventory list
-            UpdateInventoryListInUI();
-
-            // Refresh player's quest list
-            UpdateQuestListInUI();
-
             // Refresh player's weapons combobox
             UpdateWeaponListInUI();
 
@@ -204,37 +236,6 @@ namespace SuperAdventure
             lblGold.Text = _player.Gold.ToString();
             lblExp.Text = _player.ExperiencePoints.ToString();
             lblLevel.Text = _player.Level.ToString();
-        }
-
-
-        private void UpdateInventoryListInUI()
-        {
-            dgvInventory.RowHeadersVisible = false;
-            dgvInventory.ColumnCount = 2;
-            dgvInventory.Columns[0].Name = "Name";
-            dgvInventory.Columns[0].Width = 197;
-            dgvInventory.Columns[1].Name = "Quantity";
-            dgvInventory.Rows.Clear();
-            foreach (InventoryItem inventoryItem in _player.Inventory)
-            {
-                if (inventoryItem.Quantity > 0)
-                {
-                    dgvInventory.Rows.Add(new[] { inventoryItem.Details.Name, inventoryItem.Quantity.ToString() });
-                }
-            }
-        }
-        private void UpdateQuestListInUI()
-        {
-            dgvQuests.RowHeadersVisible = false;
-            dgvQuests.ColumnCount = 2;
-            dgvQuests.Columns[0].Name = "Name";
-            dgvQuests.Columns[0].Width = 197;
-            dgvQuests.Columns[1].Name = "Done?";
-            dgvQuests.Rows.Clear();
-            foreach (PlayerQuest playerQuest in _player.Quests)
-            {
-                dgvQuests.Rows.Add(new[] { playerQuest.Details.Name, playerQuest.IsCompleted.ToString() });
-            }
         }
         private void UpdateWeaponListInUI()
         {
@@ -257,10 +258,20 @@ namespace SuperAdventure
             }
             else
             {
+                cboWeapons.SelectedIndexChanged -= cboWeapons_SelectedIndexChanged;
                 cboWeapons.DataSource = weapons;
+                cboWeapons.SelectedIndexChanged += cboWeapons_SelectedIndexChanged;
                 cboWeapons.DisplayMember = "Name";
                 cboWeapons.ValueMember = "ID";
-                cboWeapons.SelectedIndex = 0;
+
+                if (_player.CurrentWeapon != null)
+                {
+                    cboWeapons.SelectedItem = _player.CurrentWeapon;
+                }
+                else
+                {
+                    cboWeapons.SelectedIndex = 0;
+                }
             }
         }
 
@@ -349,8 +360,6 @@ namespace SuperAdventure
                     }
                 }
                 // Refresh player information and inventory controls
-                UpdatePlayerStats();
-                UpdateInventoryListInUI();
                 UpdateWeaponListInUI();
                 UpdatePotionListInUI();
                 // Add a blank line to the messages box, just for appearance.
@@ -368,7 +377,6 @@ namespace SuperAdventure
                 // Subtract damage from player
                 _player.CurrentHitPoints -= damageToPlayer;
                 // Refresh player data in UI
-                lblHitPoints.Text = _player.CurrentHitPoints.ToString();
                 if (_player.CurrentHitPoints <= 0)
                 {
                     // Display message
@@ -418,8 +426,6 @@ namespace SuperAdventure
                 MoveTo(World.LocationByID(World.LOCATION_ID_HOME));
             }
             // Refresh player data in UI
-            lblHitPoints.Text = _player.CurrentHitPoints.ToString();
-            UpdateInventoryListInUI();
             UpdatePotionListInUI();
 
             ScrollToBottomOfMessages();
@@ -428,6 +434,11 @@ namespace SuperAdventure
         {
             rtbMessages.SelectionStart = rtbMessages.Text.Length;
             rtbMessages.ScrollToCaret();
+        }
+
+        private void SuperAdventure_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            File.WriteAllText(PLAYER_DATA_FILE_NAME, _player.ToXmlString());
         }
     }
 }
