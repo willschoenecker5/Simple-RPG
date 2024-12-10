@@ -112,6 +112,8 @@ namespace SuperAdventure
                 btnEast.Visible = (_player.CurrentLocation.LocationToEast != null);
                 btnSouth.Visible = (_player.CurrentLocation.LocationToSouth != null);
                 btnWest.Visible = (_player.CurrentLocation.LocationToWest != null);
+                // Show/hide trade button for vendors
+                btnTrade.Visible = (_player.CurrentLocation.VendorWorkingHere != null);
                 // Display current location name and description
                 rtbLocation.Text = _player.CurrentLocation.Name + Environment.NewLine;
                 rtbLocation.Text += _player.CurrentLocation.Description + Environment.NewLine;
@@ -199,6 +201,13 @@ namespace SuperAdventure
         private void SuperAdventure_FormClosing(object sender, FormClosingEventArgs e)
         {
             File.WriteAllText(PLAYER_DATA_FILE_NAME, _player.ToXmlString());
+        }
+
+        private void btnTrade_Click(object sender, EventArgs e)
+        {
+            TradingScreen tradingScreen = new TradingScreen(_player);
+            tradingScreen.StartPosition = FormStartPosition.CenterParent;
+            tradingScreen.ShowDialog(this);
         }
     }
 }
